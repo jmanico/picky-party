@@ -44,15 +44,15 @@ Statuses describe how fully the responsibility is defined by the inputs; module 
 | --- | --- | --- | --- |
 | Web presentation | Render workflows, retain inputs, show canonical states and connection status; no authoritative business transitions | Transient form and view state only | SUPPORTED — FR-1.12, FR-1.13, FR-2.10, FR-5.2, FR-5.6, FR-10.12; NFR-3.1–NFR-3.6 |
 | Mobile presentation | React Native supplied; workflow coverage unresolved | TO BE DECIDED | TO BE DECIDED — no native-app requirement ID |
-| Identity and access | Verify/sign in/out; evaluate roles, suspension and current event access; Admin role management | Accounts, verification/sign-in records, sessions, role grants, suspension | PARTIALLY DEFINED — FR-6.1–FR-6.7, FR-6.10–FR-6.17; FR-11.2; session mechanics unresolved |
-| Events and recipes | Event validation, launch checks, immutable snapshots, staff assignments, permanent URL/QR, calendar visibility | Events, assignments, reusable dishes, ingredients, event recipe snapshots | SUPPORTED — FR-1.1–FR-1.14; FR-2.1–FR-2.16; FR-5.1–FR-5.8, FR-5.10; FR-6.8, FR-6.9; FR-7.1–FR-7.8 |
-| Orders and bookings | Consent, review/acceptance, order transitions, cutoff, capacity and hold rules, accepted recipe preservation, cancellation | Orders, food needs, consent, proposals, accepted recipes, holds, bookings | SUPPORTED — FR-3.1–FR-3.24; FR-5.9; FR-7.9, FR-7.10; FR-8.1–FR-8.9, FR-8.24; FR-9.1–FR-9.7, FR-9.11; FR-11.7 |
-| Financial workflows | Account capability checks, payment validation, reconciliation, refund limits, payout eligibility and deduplication | Connected-account references/status, payment attempts, receipts, refunds, payouts, financial operation identifiers | PARTIALLY DEFINED — FR-2.5; FR-8.10–FR-8.23; FR-9.4, FR-9.7–FR-9.10, FR-9.12–FR-9.18; provider contract unresolved |
+| Identity and access | Verify/sign in/out; evaluate the current session, ownership, role, suspension and event assignment for every protected command and read; Admin role management | Accounts, verification/sign-in records, sessions, role grants, suspension | PARTIALLY DEFINED — FR-6.1–FR-6.7, FR-6.10–FR-6.18; FR-11.2; session mechanics unresolved. Threats: T-001, T-003, T-014, T-015, T-022, T-035. |
+| Events and recipes | Event validation, public-field preview, launch checks, immutable snapshots, staff assignments, permanent URL/QR, calendar visibility | Events, assignments, reusable dishes, ingredients, event recipe snapshots | SUPPORTED — FR-1.1–FR-1.15; FR-2.1–FR-2.16; FR-5.1–FR-5.8, FR-5.10; FR-6.8, FR-6.9; FR-7.1–FR-7.8. Threats: T-023, T-024, T-026, T-036. |
+| Orders and bookings | Consent evidence, review/acceptance, order transitions, cutoff, capacity and hold rules, accepted recipe preservation, cancellation | Orders, food needs, consent, proposals, accepted recipes, holds, bookings | SUPPORTED — FR-3.1–FR-3.26; FR-5.9; FR-7.9, FR-7.10; FR-8.1–FR-8.9, FR-8.24; FR-9.1–FR-9.7, FR-9.11; FR-11.7. Threats: T-025, T-028, T-037, T-041. |
+| Financial workflows | Account capability checks, authentic payment-evidence validation, reconciliation, transition and side-effect idempotency by operation identity, refund limits, payout eligibility and deduplication | Connected-account references/status, payment attempts, receipts, refunds, payouts, financial operation identifiers | PARTIALLY DEFINED — FR-2.5; FR-8.10–FR-8.25; FR-9.4, FR-9.7–FR-9.10, FR-9.12–FR-9.18; provider contract unresolved. Threats: T-002, T-004–T-006, T-016–T-018, T-032, T-033, T-039, T-040. |
 | Payment outbound gateway | Implements the financial application’s payment port for account capabilities, checkout, reconciliation, refunds, fees and payouts; translates provider results without deciding business eligibility | Payment-only SDK/client configuration and credentials; no business-record ownership | SUPPORTED — explicit architecture constraint; FR-2.5, FR-8.10, FR-8.21–FR-8.23, FR-9.4, FR-9.12–FR-9.18; provider selection remains AQ-3 |
 | Email outbound gateway | Implements email delivery for account access and notices; cannot invoke payment operations | Email-only SDK/client configuration and credentials; delivery records remain owned by updates/notices | SUPPORTED — explicit architecture constraint; FR-6.2, FR-6.3, FR-4.12–FR-4.14; provider selection remains AQ-4 |
 | Preparation and shopping reads | Deterministic totals, distinct variants, cook/shopper projections; exclude unpaid/cancelled orders | Derived results only; source ownership remains with events and orders | SUPPORTED — FR-4.5–FR-4.8; FR-10.1–FR-10.13 |
-| Updates and notices | Durable staff history, reconnect replay, account notices, privacy-filtered email dispatch | Update references/cursors, account notices, delivery status | PARTIALLY DEFINED — FR-4.1–FR-4.14; NFR-1.1–NFR-1.3; email provider unresolved |
-| Durable work and records | Dispatch scheduled/retry work through owning workflows; record audit outcomes and execute owner-defined retention | Pending-work metadata, audit records; no ownership of source business records | SUPPORTED — FR-2.16, FR-3.24, FR-8.7, FR-9.13, FR-11.3–FR-11.6; NFR-1.5, NFR-2.1 |
+| Updates and notices | Durable staff history, current-assignment authorization for every read and replay, account notices, privacy-filtered email dispatch | Update references/cursors, account notices, delivery status; cursors never confer access | PARTIALLY DEFINED — FR-4.1–FR-4.15; NFR-1.1–NFR-1.3; email provider unresolved. Threats: T-010, T-012, T-021, T-042, T-044. |
+| Durable work and records | Dispatch scheduled/retry work through owning workflows; record linked audit outcomes; retain only opaque private-note references; execute owner-defined retention | Pending-work metadata, audit records; no ownership of source business records or private-note content | SUPPORTED — FR-2.16, FR-3.24, FR-8.7, FR-8.25, FR-9.13, FR-11.3–FR-11.9; NFR-1.5, NFR-2.1, NFR-2.5. Threats: T-006, T-007, T-011, T-030, T-034, T-043. |
 
 ### Component and trust-boundary diagram
 
@@ -72,6 +72,7 @@ flowchart TB
     Finance[Financial workflows]
     Planning[Preparation and shopping reads]
     Notices[Updates and notices]
+    Projection[Authorized audience projections]
     Work[Durable work and audit]
     Persistence[Persistence adapters]
     subgraph PaymentIntegration[Isolated payment integration]
@@ -83,6 +84,7 @@ flowchart TB
     end
     API --> App
     App --> Identity & Events & Orders & Finance & Planning & Notices
+    App --> Projection
     Work --> App
     App --> Persistence
     Finance -->|payment port| PaymentGateway
@@ -105,9 +107,9 @@ flowchart TB
 ## 6. Runtime View
 
 1. **Publish and discover:** Organizer input passes identity and event validation; launch checks complete recipes and payment-account capabilities before committing the launched snapshot and URL. Calendar/public reads return only approved public fields. The QR encodes that same URL; cancellation preserves it with a notice.
-2. **Review and prepare:** submission persists an order and staff update atomically. Unchanged orders become Ready for Payment; changed dishes require Organizer proposals and Attendee acceptance. Neither review nor acceptance reserves a seat. Confirmed recipes feed cook views and deterministic shopping totals. Shopper projections remove identity and private notes before crossing the client boundary.
-3. **Cancel and settle:** eligible cancellation commits the cancellation, released seat, update and refund work together. Provider results update financial state without restoring attendance. Event cancellation cancels all active orders and initiates refunds for paid bookings. Completion initiates an eligible, deduplicated payout. Background retries and Admin reconciliation use the same workflows as callbacks. Every outbound payment-service operation passes through the payment outbound gateway; incoming callbacks use a distinct payment inbound adapter.
-4. **Notify and reconnect:** committed update references feed authorized polling and account notices. Email delivery uses the separate email outbound gateway and is independent of notice persistence and financial dispatch. Reconnection returns current state and missed history; clients display staleness until refreshed. Retention tasks invoke owners to delete private notes and age financial records according to the required periods.
+2. **Review and prepare:** submission persists an order and staff update atomically. Unchanged orders become Ready for Payment; changed dishes require Organizer proposals and Attendee acceptance. Neither review nor acceptance reserves a seat. Confirmed recipes feed cook views and deterministic shopping totals. Audience projections remove unauthorized fields before crossing the client boundary. The consent interaction names the food information, recipients and purpose before the Attendee acts. Threats: T-008–T-010, T-019, T-025, T-028, T-037, T-041.
+3. **Cancel and settle:** eligible cancellation commits the cancellation, released seat, update and refund work together. Browser/client returns are never payment evidence. Authenticated callback or reconciliation evidence re-enters the same workflow, which checks operation identity, amount, currency, event and hold state before applying each authorized transition and external side effect at most once. Later authorized transitions may continue the defined payment, refund, or payout lifecycle. Event cancellation initiates refunds for paid bookings; completion initiates an eligible payout. Every outbound payment-service operation passes through the payment outbound gateway; incoming callbacks use a distinct payment inbound adapter. Threats: T-002, T-004–T-006, T-016–T-018, T-032, T-033, T-039, T-040.
+4. **Notify and reconnect:** committed update references feed polling and account notices. Every staff current-state or replay request first rechecks the current assignment; a cursor selects history but never establishes entitlement. Email delivery uses the separate email outbound gateway and is independent of notice persistence and financial dispatch. Reconnection returns one authorized, consistent revision of current state and missed history; clients display staleness until refreshed. Retention tasks invoke owners to delete private notes and age financial records according to the required periods. Threats: T-010, T-012, T-013, T-020, T-021, T-042–T-044.
 
 ```mermaid
 sequenceDiagram
@@ -126,6 +128,9 @@ sequenceDiagram
   Pay-->>Gateway: Checkout response
   Gateway-->>API: Normalized checkout result
   API-->>Attendee: Checkout details and hold expiry
+  Attendee->>API: Browser/client payment return
+  API->>DB: Read current authoritative payment state#59; return causes no transition
+  API-->>Attendee: Current state#59; Pending unless provider evidence was already applied
   alt Provider callback
     Pay->>Callback: Payment result
     Callback->>API: Verified and normalized payment evidence
@@ -135,7 +140,7 @@ sequenceDiagram
     Pay-->>Gateway: Provider result
     Gateway-->>API: Normalized payment evidence
   end
-  API->>DB: Deduplicate and validate payment, event and hold
+  API->>DB: Deduplicate and validate authentic evidence, amount, currency, event and hold
   alt Correct payment during valid hold
     API->>DB: Replace hold with booking#59; persist updates and notices
   else Late, incorrect, duplicate or cancelled-event payment
@@ -144,7 +149,7 @@ sequenceDiagram
     API->>DB: Keep payment Pending#59; block another payment
   end
   Staff->>API: Poll after saved cursor
-  API->>DB: Read current authorized state and updates
+  API->>DB: Recheck current assignment; read one revision of authorized state and updates
   API-->>Staff: Filtered update and current preparation totals
 ```
 
@@ -158,7 +163,7 @@ Deployment environment is UNKNOWN (AQ-5). No deployment topology is specified, a
 
 **PROPOSED:** explicit command endpoints for actions such as launch, accept proposal, checkout, and cancel, plus read endpoints for public and authorized views. Do not expose arbitrary state updates. Return canonical states, field-specific errors, deadlines, and update cursors. Keep entered values on failed submissions (FR-1.12, FR-1.13). Stable public event URLs are also the only QR payload (FR-2.8, FR-2.9, FR-2.15).
 
-**PROPOSED:** connected staff clients poll every two seconds using a durable cursor; on reconnect, fetch current authorized state and missed updates together. Bound responses with paging and use a consistent revision so an update is neither skipped nor mistaken for current state. The interval is a recommendation, not evidence that NFR-1.1–NFR-1.3 are met; validate end-to-end display latency under the required load. Detect connection failures, show the last successful update time, and retain focus and reading position.
+**PROPOSED:** connected staff clients poll every two seconds using a durable cursor; on every request and reconnect, authorize the current assignment before fetching current state and missed updates together. A cursor is only a position and never an authorization fact. Bound responses with paging and use a consistent revision so an update is neither skipped nor mistaken for current state. The interval is a recommendation, not evidence that NFR-1.1–NFR-1.3 are met; validate end-to-end display latency under the required load. Detect connection failures, show the last successful update time, and retain focus and reading position. Threats: T-010, T-012, T-021, T-042.
 
 ReactJS implements the calendar, event and account workflows, and staff/administration views justified by the requirements. Apply DESIGN.md tokens, permitted color pairs, system typography, content-driven reflow, exact state names, and accessible interaction patterns. Support keyboard actions, 200% text size, 320-pixel forms/details/lists, and stable live-update focus (NFR-3.1–NFR-3.6). Printing shopping lists and downloading QR codes belong to presentation; their data comes from authorized server reads.
 
@@ -188,7 +193,23 @@ Email verification and sign-in links enter the identity workflow. **PROPOSED:** 
 
 Build separate public, Attendee, Organizer, cook, shopper, and Admin projections on the server. Public results exclude exact addresses and private records; addresses are restricted to the audiences in FR-2.12. Attendees see only their own orders/payments. Food-note sharing requires consent; shopper results exclude names and private notes, and emails exclude private notes and exact addresses. Revoking staff access applies to subsequent reads, including update replay (FR-3.10; FR-4.7; FR-4.14; FR-6.10; FR-11.1, FR-11.2).
 
-Record actor, time and outcome for required state changes. **PROPOSED:** store private food-note content only in its owning records; updates, jobs and audit records refer to those records instead of copying notes. This allows consent withdrawal and 90-day deletion without leaving retained copies. Retain required financial references, amounts, states and action records for 24 months after last change, excluding private food notes (FR-11.3–FR-11.7). Detailed link protection, session controls, callback verification, operational access and retention controls belong in `SECURITY.md`.
+Record actor, time, outcome, affected record and operation for required state changes; financial audit entries also carry the local operation and provider reference when present. Store private food-note content only in its owning order records; financial records, updates, jobs and audit records carry only opaque references. This supports consent withdrawal and 90-day deletion without retained operational copies. Derived-store, export, cache and backup deletion/restoration coverage remains unresolved under AQ-7 and SECURITY.md OD-010. Retain required financial references, amounts, states and action records for 24 months after last change, excluding private food notes (FR-11.3–FR-11.9). Threats: T-007, T-011, T-019, T-029, T-030, T-034, T-043.
+
+```mermaid
+flowchart LR
+  Notes[(Owning order food-note record)]
+  Projection[Authorized Organizer/cook projection]
+  Ref[Opaque record reference]
+  Updates[Update history]
+  Jobs[Durable work]
+  Audit[Audit records]
+  Finance[Financial records]
+  Unknown[Derived stores, exports, caches and backups: coverage TO BE DECIDED]
+  Notes -->|authorized current content| Projection
+  Notes -->|identifier only| Ref
+  Ref --> Updates & Jobs & Audit & Finance
+  Notes -.->|copy lifecycle unresolved| Unknown
+```
 
 ### Dependency rules
 
@@ -199,7 +220,7 @@ Record actor, time and outcome for required state changes. **PROPOSED:** store p
 - **DR-5:** Cross-module orchestration lives above the modules. Modules never call back into orchestration or form mutual dependencies. Access checks receive ownership/assignment facts through interfaces; event modules do not depend on identity storage internals.
 - **DR-6:** Source records flow into audience-specific reads and derived totals, then into presentation. Derived results, notifications and client state cannot write back as authoritative orders, recipes or financial results.
 - **DR-7:** Business changes flow into transactional update/work records, then delivery adapters. Callback handlers and retries re-enter workflows with deduplication; delivery success never substitutes for a business-state commit.
-- **DR-8:** External services are reached only through adapters. Provider payloads become validated application facts before affecting bookings or balances. Private data is filtered before every client/provider boundary, including update replay and email.
+- **DR-8:** External services are reached only through adapters. Browser returns are non-authoritative. Provider payloads become authenticated, validated, deduplicated application facts before affecting bookings or balances. Private data is filtered before every client/provider boundary, including update replay and email. Threats: T-002, T-004, T-008–T-010, T-016, T-019, T-031, T-039.
 - **DR-9:** Only financial workflows may call the payment outbound port; only its dedicated gateway may make outbound payment-provider calls. Identity and notice workflows use the distinct email port and gateway. No dependency, invocation, shared provider client, credentials or mutable retry/failure state may cross between the two gateways. Inbound payment callbacks enter workflows through their separate adapter.
 
 ## 9. Architectural Decisions
@@ -274,7 +295,7 @@ Business state names and all other product terms remain authoritative in REQUIRE
 
 - **AQ-1 — Input terminology:** Node.js was supplied as framework and Fastify as runtime. PROPOSED interpretation is Node.js runtime with Fastify framework; acceptance of that correction is TO BE DECIDED. Neither technology is replaced.
 - **AQ-2 — Native scope:** Requirements define a website and responsive accessibility, while developer inputs also specify React Native. Native platforms, release scope, workflow parity, link handling, printing and accessibility mapping are TO BE DECIDED; platform facts are UNKNOWN.
-- **AQ-3 — Payment provider:** Selection and supported connected-account, callback, reconciliation, refund, fee and post-completion payout contracts are TO BE DECIDED. Provider durations are UNKNOWN. Selection must support full refunds, no extra Attendee fees, and the required payout timing; incompatible capabilities must be flagged.
+- **AQ-3 — Payment provider:** Selection and supported connected-account, authenticated callback, reconciliation, operation identity/idempotency, exact transferred fields, refund, fee and post-completion payout contracts are TO BE DECIDED. Provider durations are UNKNOWN. Selection must support full refunds, no extra Attendee fees, and the required payout timing; incompatible capabilities must be flagged. Threats: T-002, T-004, T-006, T-016, T-018, T-032, T-033, T-039, T-040.
 - **AQ-4 — Email and sessions:** Email provider, sign-in/verification link lifecycle, session lifetime, revocation behavior and native credential transport are TO BE DECIDED. First Admin provisioning is also TO BE DECIDED without weakening FR-6.11.
 - **AQ-5 — Persistence and execution:** Acceptance of PostgreSQL, transaction/locking details, durable-work retry/reconciliation policies, and runtime/library versions is TO BE DECIDED. Hosting environment is UNKNOWN; operational choices must meet restart durability and 99.5% monthly read availability without inventing growth targets.
 - **AQ-6 — Update transport:** Acceptance of two-second cursor polling is TO BE DECIDED after testing all staff display/reconnect limits under the specified load, including polling traffic. Any transport change must preserve durable replay and current-assignment checks.

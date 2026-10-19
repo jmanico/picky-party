@@ -65,6 +65,7 @@ All entries in this table are ASSUMPTION. They resolve the former open questions
 - **FR-1.12** The system MUST identify each invalid field when it rejects event data.
 - **FR-1.13** The system MUST preserve entered values when it rejects event data.
 - **FR-1.14** The system MUST let the event Organizer preview the public event details before launch.
+- **FR-1.15** The launch preview MUST identify every field that will be public, including the Organizer name, and MUST state that launch creates a permanent public URL whose cancellation notice remains available. Threats: [T-023](THREAT_MODEL.md#t-023-permanent-url-enables-longitudinal-event-correlation), [T-024](THREAT_MODEL.md#t-024-public-event-identifies-organizer-association), [T-026](THREAT_MODEL.md#t-026-public-discovery-reveals-event-existencestate).
 
 ### Event Launch and Advertising
 
@@ -111,6 +112,8 @@ All entries in this table are ASSUMPTION. They resolve the former open questions
 - **FR-3.22** The system MUST reject food changes after payment confirmation.
 - **FR-3.23** The system MUST show dietary labels as requests rather than medical or dietary certifications.
 - **FR-3.24** The system MUST expire unconfirmed orders at the booking cutoff.
+- **FR-3.25** Before requesting food-note consent, the system MUST identify the food information to be shared, the Organizer and cook as its recipients, and food review and preparation as its purpose. Threats: [T-025](THREAT_MODEL.md#t-025-cook-view-links-attendee-identity-with-food-needs), [T-028](THREAT_MODEL.md#t-028-food-needs-disclose-personal-circumstances-to-organizercook), [T-037](THREAT_MODEL.md#t-037-food-requestconsentacceptanceorder-state-advances-incorrectly).
+- **FR-3.26** The system MUST record the current food-note consent outcome and its time with the order. Threats: [T-028](THREAT_MODEL.md#t-028-food-needs-disclose-personal-circumstances-to-organizercook), [T-037](THREAT_MODEL.md#t-037-food-requestconsentacceptanceorder-state-advances-incorrectly).
 
 ### Order Updates
 
@@ -128,6 +131,7 @@ All entries in this table are ASSUMPTION. They resolve the former open questions
 - **FR-4.12** The system MUST send email notices for review decisions, booking confirmation, event cancellation, and refund results.
 - **FR-4.13** The system MUST keep notices available in the account if email delivery fails.
 - **FR-4.14** The system MUST exclude exact addresses and private food notes from email notices.
+- **FR-4.15** The system MUST verify the current event assignment before every staff current-state read, update poll, and missed-update replay, and MUST stop returning staff data after that assignment is removed. An update cursor or previously cached response MUST NOT establish access. Threats: [T-010](THREAT_MODEL.md#t-010-removed-staff-retain-currentreplayed-access), [T-021](THREAT_MODEL.md#t-021-lost-delayed-replayed-or-stale-staff-updates), [T-042](THREAT_MODEL.md#t-042-staff-updatereconnect-lost-stale-duplicate-or-mis-scoped).
 
 ### Event Calendar
 
@@ -161,6 +165,7 @@ All entries in this table are ASSUMPTION. They resolve the former open questions
 - **FR-6.15** The system MUST let an Admin inspect payment and refund failures.
 - **FR-6.16** The system MUST reject an unauthorized action without changing the affected record.
 - **FR-6.17** The system MUST let an Admin restore a suspended account's access to new events and orders.
+- **FR-6.18** The system MUST evaluate the current session, role, ownership, suspension, and event assignment required by each protected action or read when that operation is processed. Client state, a resource identifier, or prior access MUST NOT confer authority. Threats: [T-003](THREAT_MODEL.md#t-003-client-controlled-business-transition), [T-008](THREAT_MODEL.md#t-008-public-or-wrong-account-projection-exposes-restricted-data), [T-014](THREAT_MODEL.md#t-014-account-exceeds-ownership-assignment-role-or-suspension-scope), [T-015](THREAT_MODEL.md#t-015-unauthorized-actor-reads-or-changes-restricted-records), [T-035](THREAT_MODEL.md#t-035-identityauthorization-returns-wrong-decision).
 
 ### Dishes and Recipes
 
@@ -188,7 +193,7 @@ All entries in this table are ASSUMPTION. They resolve the former open questions
 - **FR-8.9** The system MUST show the final USD price and cancellation terms before payment.
 - **FR-8.10** The system MUST collect the full event price for one seat through the payment service.
 - **FR-8.11** The system MUST exclude additional Attendee fees from checkout.
-- **FR-8.12** The system MUST confirm a booking only after the payment service confirms the correct amount and currency during a valid seat hold.
+- **FR-8.12** The system MUST confirm a booking only from independently authenticated payment-service evidence that confirms the correct amount and currency during a valid seat hold for a launched event. A browser or client return MUST NOT confirm payment. Threats: [T-002](THREAT_MODEL.md#t-002-unauthenticated-payment-result-accepted-as-provider-evidence), [T-004](THREAT_MODEL.md#t-004-altered-late-duplicate-or-replayed-financial-evidence), [T-016](THREAT_MODEL.md#t-016-untrusted-or-repeated-payment-evidence-corrupts-state), [T-032](THREAT_MODEL.md#t-032-confirm-booking-without-acceptable-payment-and-valid-hold), [T-039](THREAT_MODEL.md#t-039-payment-result-validatedreconcileddeduplicated-incorrectly).
 - **FR-8.13** The system MUST record the payment reference and payment state against the order.
 - **FR-8.14** The system MUST create at most one confirmed booking from repeated payment confirmations for the same order.
 - **FR-8.15** The system MUST request a full refund for a payment received after hold expiry or event cancellation.
@@ -201,6 +206,7 @@ All entries in this table are ASSUMPTION. They resolve the former open questions
 - **FR-8.22** The system MUST let an Organizer connect a payment service account for event payments and payouts.
 - **FR-8.23** The system MUST show the Organizer whether the connected payment account can accept payments and receive payouts.
 - **FR-8.24** The system MUST replace the seat hold with one confirmed booking when it confirms payment.
+- **FR-8.25** The system MUST apply each authorized state transition and external financial side effect for a logical operation at most once. Repeated or stale callbacks, reconciliation results, retries, and provider evidence MUST NOT repeat or reverse an already applied transition or side effect; an authorized later transition or retry MAY continue the defined payment, refund, or payout lifecycle. Threats: [T-004](THREAT_MODEL.md#t-004-altered-late-duplicate-or-replayed-financial-evidence), [T-006](THREAT_MODEL.md#t-006-duplicate-or-out-of-order-work-applies-stale-effects), [T-016](THREAT_MODEL.md#t-016-untrusted-or-repeated-payment-evidence-corrupts-state), [T-018](THREAT_MODEL.md#t-018-repeated-refund-or-payout-exceeds-authorized-value), [T-033](THREAT_MODEL.md#t-033-excess-refund-or-duplicate-payout), [T-040](THREAT_MODEL.md#t-040-refundpayout-late-excessive-duplicate-or-email-blocked).
 
 ### Cancellations, Refunds, and Payouts
 
@@ -252,6 +258,8 @@ Acceptance examples: Ten confirmed portions at 100 grams require 1,000 grams bas
 - **FR-11.5** The system MUST retain payment references, amounts, states, and financial action records for 24 months after their last change.
 - **FR-11.6** The system MUST exclude private food notes from retained financial records.
 - **FR-11.7** The system MUST let an Attendee withdraw consent for food notes by cancelling an eligible booking and deleting those notes.
+- **FR-11.8** Each audit record required by FR-11.3 MUST identify the affected record and operation; a financial audit record MUST also identify the local financial operation and provider reference when either exists. Threats: [T-007](THREAT_MODEL.md#t-007-state-change-lacks-attributable-evidence), [T-029](THREAT_MODEL.md#t-029-auditfinancial-history-creates-attributable-long-term-linkage), [T-043](THREAT_MODEL.md#t-043-durable-work-audit-or-retention-incomplete).
+- **FR-11.9** The system MUST keep private food-note content in its owning order records and MUST NOT copy that content into financial records, audit records, staff-update history, or durable-work metadata. Those records MAY carry an opaque reference to the owning record. Threats: [T-011](THREAT_MODEL.md#t-011-private-food-notes-survive-deletionwithdrawal), [T-019](THREAT_MODEL.md#t-019-private-notes-or-addresses-leak-through-projectioncopy), [T-030](THREAT_MODEL.md#t-030-private-note-copies-outlive-deletion-lifecycle), [T-034](THREAT_MODEL.md#t-034-private-note-remains-accessible-after-deletionwithdrawal), [T-043](THREAT_MODEL.md#t-043-durable-work-audit-or-retention-incomplete).
 
 ## Non-Functional Requirements
 
@@ -271,6 +279,7 @@ ASSUMPTION: These are first-release acceptance targets. Performance measurements
 - **NFR-2.2** The system MUST keep confirmed bookings plus unexpired seat holds at or below event capacity under simultaneous requests.
 - **NFR-2.3** The system MUST produce identical ingredient totals for identical confirmed orders, recipes, and calculation rules.
 - **NFR-2.4** The system MUST provide public event reads and signed-in account reads for at least 99.5% of each calendar month.
+- **NFR-2.5** Repeating a callback, reconciliation, retry, Admin retry, or scheduled financial task MUST NOT create an additional booking, exceed the original payment in total refunds, or pay the same event proceeds more than once. Threats: [T-004](THREAT_MODEL.md#t-004-altered-late-duplicate-or-replayed-financial-evidence), [T-006](THREAT_MODEL.md#t-006-duplicate-or-out-of-order-work-applies-stale-effects), [T-018](THREAT_MODEL.md#t-018-repeated-refund-or-payout-exceeds-authorized-value), [T-033](THREAT_MODEL.md#t-033-excess-refund-or-duplicate-payout), [T-040](THREAT_MODEL.md#t-040-refundpayout-late-excessive-duplicate-or-email-blocked).
 
 Availability is the percentage of successful one-minute read probes across both read types. Planned downtime counts as unavailable.
 
