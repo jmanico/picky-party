@@ -2,7 +2,7 @@
 
 ## Required Requirement Inputs
 
-- Project purpose: A cooking event website, similar to "Eat With", for events with a price per person and dishes that meet guest needs.
+- Project purpose: A cooking event website, or events with a price per person and dishes that meet guest needs.
 - Primary users / actors: Admin, Organizer, Attendee. The cook and grocery shopper receive order updates. Their user roles are UNKNOWN.
 - Core workflows: Create events; set a price per person; select dishes; specify an address and event capacity; launch events; advertise with a QR code; order food; change dishes for guest needs; calculate total ingredients from paid attendance, plus extra; provide live order updates; show an event calendar. The Organizer brings the ingredients for each dish.
 - Business objects / data entities: User, event, dish, ingredient, food order, payment, diet need, special need, food preference, QR code, event calendar.
