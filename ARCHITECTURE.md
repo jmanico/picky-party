@@ -1,23 +1,32 @@
 # Architecture
 
+This document follows the twelve sections of [arc42](https://arc42.org/overview/), with Required Architecture Inputs and Open Questions retained as project-specific appendices. Section 7 records deployment uncertainty only; deployment topology remains outside this document’s requested scope.
+
+## 1. Introduction and Goals
+
 This document owns how the system is built. [REQUIREMENTS.md](REQUIREMENTS.md) owns behavior; [DESIGN.md](DESIGN.md) owns visual and interaction constraints. This is a design for a system with no implementation. Requirements marked ASSUMPTION in the source remain adopted first-release requirements. **PROPOSED** identifies an unconfirmed technical recommendation, **UNKNOWN** a missing fact, and **TO BE DECIDED** a pending decision.
 
-## Required Architecture Inputs
+The system supports cooking events, reviewed food needs, paid seats, and preparation planning. Architecture priorities are consistent capacity and financial state, private audience-specific data, durable changes, and timely accessible staff views. Organizer, Attendee and Admin are account actors; cook and shopper are event assignments. Their permissions remain defined by REQUIREMENTS.md. Section 10 records measurable quality scenarios.
 
-| Field | Input |
+## 2. Architecture Constraints
+
+Developer choices require Node.js, Fastify, ReactJS and React Native; the framework/runtime label conflict and mobile scope remain AQ-1 and AQ-2. The Required Architecture Inputs appendix records each input once. First-release behavior is English, USD and online payment, with no additional features inferred. DESIGN.md governs visual tokens and frontend interactions. Jurisdictions are UNKNOWN; detailed security controls belong in SECURITY.md.
+
+## 3. Context and Scope
+
+| External actor or system | Interaction at the system boundary |
 | --- | --- |
-| Requirements source | `REQUIREMENTS.md` |
-| Design source | `DESIGN.md` |
-| Target surfaces | Public and authenticated website, including narrow viewports, from the requirements. Mobile application scope is UNKNOWN; React Native is supplied separately as a developer choice. See AQ-2. |
-| Runtime and deployment environment | Developer input names Fastify as the server runtime. Node.js is also specified, under server framework. These labels conflict with their technical roles; see AQ-1. Deployment environment is UNKNOWN. |
-| Server framework | Developer input: Node.js. PROPOSED interpretation: Fastify framework running on Node.js, preserving both choices; confirmation is TO BE DECIDED in AQ-1. |
-| Client framework(s) | Confirmed developer choices: ReactJS (web), React Native (mobile). Mobile scope remains unresolved. |
-| API style and integration model | PROPOSED: HTTP JSON request/response API, cursor-based polling for staff updates, and server-side adapters for the required payment and email services. Provider callbacks and reconciliation enter application workflows. Providers are TO BE DECIDED. |
-| Authentication and session model | Required: verified email, email-link sign-in, logout, dual Organizer/Attendee capability, Admin grants, and event-specific staff assignments. PROPOSED: revocable server-side sessions with an opaque browser cookie. Mobile session transport is TO BE DECIDED. |
-| Data model and scale expectations | Required entities and state machines come from the requirements. Acceptance load: 1,000 launched events, 10,000 confirmed bookings, 200 active sessions, 20 user actions/second; growth expectations are UNKNOWN. PROPOSED: one relational database with transactions. |
-| Security expectations | Required authorization, consent, audience filtering, audit, and retention boundaries are preserved below. Detailed controls are deferred to `SECURITY.md`. Jurisdictions and statutory duties are UNKNOWN. |
+| Visitor | Browse public calendar/event information and follow public QR URLs. |
+| Organizer | Manage owned events, recipes, food reviews, staff assignments and financial records. |
+| Attendee | Verify/sign in, submit and accept food requests, pay, inspect bookings and cancel when eligible. |
+| Cook / shopper | Read current assigned-event preparation information and persistent updates with different privacy projections. |
+| Admin | Manage Admin grants and suspension, cancel events, and inspect/reconcile/retry permitted financial actions. |
+| Payment service | Connected-account capabilities, checkout, payment evidence, refunds, fees and payouts; provider is TO BE DECIDED. |
+| Email service | Verification/access links and required notices; provider is TO BE DECIDED. |
 
-## Architecture and Decisions
+Clients and provider messages cross trust boundaries before application validation. Section 5 shows the component and trust-boundary diagram; section 8 defines boundary enforcement. Native-app scope remains unresolved and is not added to the required web workflows.
+
+## 4. Solution Strategy
 
 **PROPOSED: a modular monolith**, using the Node.js/Fastify interpretation pending AQ-1, with a ReactJS web client and one PostgreSQL database. Logical modules separate business responsibilities without separate services. Transactions are necessary for seat allocation, booking confirmation, and financial deduplication; one database keeps these operations simple at the stated acceptance load. PostgreSQL selection remains unconfirmed. No separate message broker or cache is proposed.
 
@@ -25,35 +34,7 @@ This document owns how the system is built. [REQUIREMENTS.md](REQUIREMENTS.md) o
 
 **PROPOSED: durable background work in the same application architecture.** Commit required notices, staff-update records, and outbound work with the originating state change. A database-backed dispatcher retries external work and scheduled tasks after restarts. Tasks cover hold/order expiry, event completion, refunds, payouts, email, reconciliation, and retention. This is a logical responsibility, not a deployment topology. Time-sensitive commands also check the server clock and stored deadlines; scheduler delay must not extend eligibility.
 
-### API and frontend
-
-**PROPOSED:** explicit command endpoints for actions such as launch, accept proposal, checkout, and cancel, plus read endpoints for public and authorized views. Do not expose arbitrary state updates. Return canonical states, field-specific errors, deadlines, and update cursors. Keep entered values on failed submissions (FR-1.12, FR-1.13). Stable public event URLs are also the only QR payload (FR-2.8, FR-2.9, FR-2.15).
-
-**PROPOSED:** connected staff clients poll every two seconds using a durable cursor; on reconnect, fetch current authorized state and missed updates together. Bound responses with paging and use a consistent revision so an update is neither skipped nor mistaken for current state. The interval is a recommendation, not evidence that NFR-1.1–NFR-1.3 are met; validate end-to-end display latency under the required load. Detect connection failures, show the last successful update time, and retain focus and reading position.
-
-ReactJS implements the calendar, event and account workflows, and staff/administration views justified by the requirements. Apply DESIGN.md tokens, permitted color pairs, system typography, content-driven reflow, exact state names, and accessible interaction patterns. Support keyboard actions, 200% text size, 320-pixel forms/details/lists, and stable live-update focus (NFR-3.1–NFR-3.6). Printing shopping lists and downloading QR codes belong to presentation; their data comes from authorized server reads.
-
-React Native is a confirmed framework choice, but mobile feature coverage and platform targets are TO BE DECIDED. **PROPOSED:** reuse API contracts and presentation-independent formatting where appropriate; use platform-specific rendering and accessibility. Do not infer additional mobile features or treat mobile web support as a native-app specification.
-
-### Persistence and consistency
-
-**PROPOSED:** relational records for accounts and sessions; events and assignments; dishes, shared ingredients and recipe entries; orders, consent and proposals; holds and bookings; payments, refunds and payouts; notices, staff updates, audit records and pending work. Module ownership is defined below. Store USD amounts as integer cents and ingredient quantities as exact decimals. Store schedule instants with the event time-zone identifier; reject ambiguous or invalid local times until the Organizer resolves them.
-
-Snapshot base recipes at launch and accepted recipes at confirmation so reusable-dish edits cannot change commitments (FR-7.8, FR-7.9). Preserve immutable published fields. Enforce one active order per Attendee/event and at most one booking per order through transactional constraints and workflows. Ingredient totals are derived from confirmed, uncancelled accepted recipes, grouped by ingredient identity and unit family, with the exact conversions, 10% extra, and upward rounding in FR-10.2–FR-10.11.
-
-**PROPOSED:** serialize capacity-changing operations on the event record within short database transactions. Checkout, confirmation, cancellation, and capacity edits use the same locking rule; expired holds never count toward occupancy. Confirmation atomically replaces a valid hold with a booking. Never hold a database transaction open during a provider call. Persist operation identifiers and provider references to deduplicate callbacks, retries, refunds and payouts.
-
-The provider owns its charge, refund and payout results; the application owns their validated local records and booking eligibility. A browser return cannot confirm payment. Validate provider evidence, amount, currency, hold validity, and event state before confirmation. Unknown payment results remain Pending and block another payment for that Attendee/event even if the hold expires. Late, incorrect, duplicate or cancelled-event payments trigger full refunds. Refund totals cannot exceed receipts; payouts exclude unresolved payments and refund obligations and cannot pay the same proceeds twice (FR-8.12–FR-8.24; FR-9.8–FR-9.18).
-
-### Authentication and privacy boundaries
-
-Email verification and sign-in links enter the identity workflow. **PROPOSED:** server-stored, revocable sessions; the web client holds only an opaque session identifier. Exact link/session lifetimes and mobile transport are TO BE DECIDED. Server workflows check current ownership, assignment, role, and suspension for every protected action and read. Suspension blocks new events/orders while preserving required cancellation/refund access (FR-6.12, FR-6.13).
-
-Build separate public, Attendee, Organizer, cook, shopper, and Admin projections on the server. Public results exclude exact addresses and private records; addresses are restricted to the audiences in FR-2.12. Attendees see only their own orders/payments. Food-note sharing requires consent; shopper results exclude names and private notes, and emails exclude private notes and exact addresses. Revoking staff access applies to subsequent reads, including update replay (FR-3.10; FR-4.7; FR-4.14; FR-6.10; FR-11.1, FR-11.2).
-
-Record actor, time and outcome for required state changes. **PROPOSED:** store private food-note content only in its owning records; updates, jobs and audit records refer to those records instead of copying notes. This allows consent withdrawal and 90-day deletion without leaving retained copies. Retain required financial references, amounts, states and action records for 24 months after last change, excluding private food notes (FR-11.3–FR-11.7). Detailed link protection, session controls, callback verification, operational access and retention controls belong in `SECURITY.md`.
-
-## Components and Flows
+## 5. Building Block View
 
 Statuses describe how fully the responsibility is defined by the inputs; all module boundaries are PROPOSED. SUPPORTED does not mean implemented or tested.
 
@@ -105,7 +86,7 @@ flowchart TB
   Adapters --> Payment & Email
 ```
 
-### Main data flows
+## 6. Runtime View
 
 1. **Publish and discover:** Organizer input passes identity and event validation; launch checks complete recipes and payment-account capabilities before committing the launched snapshot and URL. Calendar/public reads return only approved public fields. The QR encodes that same URL; cancellation preserves it with a notice.
 2. **Review and prepare:** submission persists an order and staff update atomically. Unchanged orders become Ready for Payment; changed dishes require Organizer proposals and Attendee acceptance. Neither review nor acceptance reserves a seat. Confirmed recipes feed cook views and deterministic shopping totals. Shopper projections remove identity and private notes before crossing the client boundary.
@@ -138,7 +119,41 @@ sequenceDiagram
   API-->>Staff: Filtered update and current preparation totals
 ```
 
-## Dependency Rules
+## 7. Deployment View
+
+Deployment environment is UNKNOWN (AQ-5). No deployment topology is specified, as requested. The section 5 diagram describes logical components only. Any later deployment decision must preserve transactional consistency, restart durability, update deadlines and monthly read availability; see section 10.
+
+## 8. Crosscutting Concepts
+
+### API and frontend
+
+**PROPOSED:** explicit command endpoints for actions such as launch, accept proposal, checkout, and cancel, plus read endpoints for public and authorized views. Do not expose arbitrary state updates. Return canonical states, field-specific errors, deadlines, and update cursors. Keep entered values on failed submissions (FR-1.12, FR-1.13). Stable public event URLs are also the only QR payload (FR-2.8, FR-2.9, FR-2.15).
+
+**PROPOSED:** connected staff clients poll every two seconds using a durable cursor; on reconnect, fetch current authorized state and missed updates together. Bound responses with paging and use a consistent revision so an update is neither skipped nor mistaken for current state. The interval is a recommendation, not evidence that NFR-1.1–NFR-1.3 are met; validate end-to-end display latency under the required load. Detect connection failures, show the last successful update time, and retain focus and reading position.
+
+ReactJS implements the calendar, event and account workflows, and staff/administration views justified by the requirements. Apply DESIGN.md tokens, permitted color pairs, system typography, content-driven reflow, exact state names, and accessible interaction patterns. Support keyboard actions, 200% text size, 320-pixel forms/details/lists, and stable live-update focus (NFR-3.1–NFR-3.6). Printing shopping lists and downloading QR codes belong to presentation; their data comes from authorized server reads.
+
+React Native is a confirmed framework choice, but mobile feature coverage and platform targets are TO BE DECIDED. **PROPOSED:** reuse API contracts and presentation-independent formatting where appropriate; use platform-specific rendering and accessibility. Do not infer additional mobile features or treat mobile web support as a native-app specification.
+
+### Persistence and consistency
+
+**PROPOSED:** relational records for accounts and sessions; events and assignments; dishes, shared ingredients and recipe entries; orders, consent and proposals; holds and bookings; payments, refunds and payouts; notices, staff updates, audit records and pending work. Module ownership is defined in section 5. Store USD amounts as integer cents and ingredient quantities as exact decimals. Store schedule instants with the event time-zone identifier; reject ambiguous or invalid local times until the Organizer resolves them.
+
+Snapshot base recipes at launch and accepted recipes at confirmation so reusable-dish edits cannot change commitments (FR-7.8, FR-7.9). Preserve immutable published fields. Enforce one active order per Attendee/event and at most one booking per order through transactional constraints and workflows. Ingredient totals are derived from confirmed, uncancelled accepted recipes, grouped by ingredient identity and unit family, with the exact conversions, 10% extra, and upward rounding in FR-10.2–FR-10.11.
+
+**PROPOSED:** serialize capacity-changing operations on the event record within short database transactions. Checkout, confirmation, cancellation, and capacity edits use the same locking rule; expired holds never count toward occupancy. Confirmation atomically replaces a valid hold with a booking. Never hold a database transaction open during a provider call. Persist operation identifiers and provider references to deduplicate callbacks, retries, refunds and payouts.
+
+The provider owns its charge, refund and payout results; the application owns their validated local records and booking eligibility. A browser return cannot confirm payment. Validate provider evidence, amount, currency, hold validity, and event state before confirmation. Unknown payment results remain Pending and block another payment for that Attendee/event even if the hold expires. Late, incorrect, duplicate or cancelled-event payments trigger full refunds. Refund totals cannot exceed receipts; payouts exclude unresolved payments and refund obligations and cannot pay the same proceeds twice (FR-8.12–FR-8.24; FR-9.8–FR-9.18).
+
+### Authentication and privacy boundaries
+
+Email verification and sign-in links enter the identity workflow. **PROPOSED:** server-stored, revocable sessions; the web client holds only an opaque session identifier. Exact link/session lifetimes and mobile transport are TO BE DECIDED. Server workflows check current ownership, assignment, role, and suspension for every protected action and read. Suspension blocks new events/orders while preserving required cancellation/refund access (FR-6.12, FR-6.13).
+
+Build separate public, Attendee, Organizer, cook, shopper, and Admin projections on the server. Public results exclude exact addresses and private records; addresses are restricted to the audiences in FR-2.12. Attendees see only their own orders/payments. Food-note sharing requires consent; shopper results exclude names and private notes, and emails exclude private notes and exact addresses. Revoking staff access applies to subsequent reads, including update replay (FR-3.10; FR-4.7; FR-4.14; FR-6.10; FR-11.1, FR-11.2).
+
+Record actor, time and outcome for required state changes. **PROPOSED:** store private food-note content only in its owning records; updates, jobs and audit records refer to those records instead of copying notes. This allows consent withdrawal and 90-day deletion without leaving retained copies. Retain required financial references, amounts, states and action records for 24 months after last change, excluding private food notes (FR-11.3–FR-11.7). Detailed link protection, session controls, callback verification, operational access and retention controls belong in `SECURITY.md`.
+
+### Dependency rules
 
 - **DR-1:** Presentation depends only on API contracts and design/formatting utilities. Clients never access the database or authorize business transitions.
 - **DR-2:** HTTP handlers and durable-work entry points call application workflows; workflows call domain policies and interfaces. Domain code never imports presentation, transport, persistence or provider code.
@@ -148,6 +163,73 @@ sequenceDiagram
 - **DR-6:** Source records flow into audience-specific reads and derived totals, then into presentation. Derived results, notifications and client state cannot write back as authoritative orders, recipes or financial results.
 - **DR-7:** Business changes flow into transactional update/work records, then delivery adapters. Callback handlers and retries re-enter workflows with deduplication; delivery success never substitutes for a business-state commit.
 - **DR-8:** External services are reached only through adapters. Provider payloads become validated application facts before affecting bookings or balances. Private data is filtered before every client/provider boundary, including update replay and email.
+
+## 9. Architectural Decisions
+
+Developer framework choices are confirmed subject to the terminology conflict; the following architectural recommendations are **PROPOSED**, not accepted decisions. Their implementation details remain in sections 4 and 8.
+
+| Decision | Rationale and consequence | Pending question |
+| --- | --- | --- |
+| Modular monolith and one PostgreSQL database | Keeps capacity and booking changes transactional without distributed coordination; modules must honor ownership boundaries. | AQ-5 |
+| HTTP JSON commands and reads | Makes business transitions explicit and supports both supplied client frameworks; native contracts need scope confirmation. | AQ-2 |
+| Durable database-backed work and update history | Survives restarts and external service failures; dispatch and retries must be deduplicated. | AQ-3, AQ-5 |
+| Two-second cursor polling | Simple staff delivery with durable replay; actual display deadlines require load validation. | AQ-6 |
+| Server-side revocable sessions | Centralizes logout and authenticated access; link/session lifecycle and native transport remain pending. | AQ-4 |
+| Server-filtered projections and private-note references | Enforces audience boundaries and avoids retained note copies; deletion coverage needs definition. | AQ-7 |
+
+## 10. Quality Requirements
+
+These are required acceptance scenarios, not measured results. Use the load recorded in Required Architecture Inputs; payment processing and email delivery durations remain UNKNOWN.
+
+| Scenario | Required outcome | Architectural support and validation |
+| --- | --- | --- |
+| Accepted change reaches connected staff; client reconnects | 95% within 5 seconds, all within 30 seconds; current data restored within 10 seconds (NFR-1.1–NFR-1.3). | Durable cursors and polling; measure through client display, including polling traffic. |
+| Public event, calendar and account reads under load | 95% complete within 2 seconds; public/account reads available 99.5% monthly, including planned downtime (NFR-1.4, NFR-2.4). | Audience-specific database reads; verify latency and the required one-minute read probes. |
+| Authorized refund with provider available | Submit within 1 minute (NFR-1.5). | Durable dispatch; measure acceptance-to-provider-submission time. |
+| Restart after acknowledged change; simultaneous last-seat checkout | Preserve changes; confirmed bookings plus unexpired holds never exceed capacity (NFR-2.1, NFR-2.2). | Commit before acknowledgement; test restart recovery and conflicting transactions. |
+| Recalculate identical confirmed recipes | Identical ingredient totals (NFR-2.3). | Exact arithmetic and deterministic conversion/rounding rules. |
+| Keyboard, enlarged text, narrow viewport or live update | Meet every NFR-3.1–NFR-3.6 accessibility constraint. | Verify rendered workflows, reading order and focus preservation against DESIGN.md. |
+| Read by a different audience or remove private notes | Enforce FR-2.12, FR-4.7, FR-4.14 and FR-11.1–FR-11.7. | Verify server projections, authorization and retention workflows; detailed controls deferred to SECURITY.md. |
+
+## 11. Risks and Technical Debt
+
+| Risk | Architectural consequence and follow-up |
+| --- | --- |
+| Payment provider cannot support required refunds or payout timing | Blocks the financial design; resolve capability fit before integration (AQ-3). |
+| Polling or work dispatch misses required deadlines | Proposed mechanisms remain unvalidated; test at the stated load before accepting them (AQ-5, AQ-6). |
+| Private notes survive in snapshots or operational records | Retention obligations may be violated; settle classification and deletion coverage (AQ-7). |
+| Native scope and supplied technology labels remain ambiguous | Implementation boundaries remain provisional (AQ-1, AQ-2). |
+
+No implementation exists, so implementation technical debt has not been assessed. Unresolved architectural decisions are recorded only in Open Questions; these risks reference those decisions.
+
+## 12. Glossary
+
+| Term | Meaning |
+| --- | --- |
+| Active order | Draft, Pending Review, Ready for Payment, Payment Pending or Confirmed order, as defined in REQUIREMENTS.md. |
+| Seat hold | Temporary capacity reservation lasting 15 minutes or until the booking cutoff, whichever is earlier. |
+| Confirmed attendance | Confirmed, uncancelled bookings; excludes unresolved payments and refunded-but-cancelled bookings. |
+| Accepted recipe | Attendee-accepted dish recipe preserved for a confirmed order; omissions contribute zero portions. |
+| Projection | Server-produced view containing only fields authorized for its audience. |
+| Durable work | Persisted pending action that can resume after a service restart. |
+| Update cursor | Position used to retrieve missed persistent staff updates. |
+
+Business state names and all other product terms remain authoritative in REQUIREMENTS.md.
+
+## Required Architecture Inputs
+
+| Field | Input |
+| --- | --- |
+| Requirements source | `REQUIREMENTS.md` |
+| Design source | `DESIGN.md` |
+| Target surfaces | Public and authenticated website, including narrow viewports, from the requirements. Mobile application scope is UNKNOWN; React Native is supplied separately as a developer choice. See AQ-2. |
+| Runtime and deployment environment | Developer input names Fastify as the server runtime. Node.js is also specified, under server framework. These labels conflict with their technical roles; see AQ-1. Deployment environment is UNKNOWN. |
+| Server framework | Developer input: Node.js. PROPOSED interpretation: Fastify framework running on Node.js, preserving both choices; confirmation is TO BE DECIDED in AQ-1. |
+| Client framework(s) | Confirmed developer choices: ReactJS (web), React Native (mobile). Mobile scope remains unresolved. |
+| API style and integration model | PROPOSED: HTTP JSON request/response API, cursor-based polling for staff updates, and server-side adapters for the required payment and email services. Provider callbacks and reconciliation enter application workflows. Providers are TO BE DECIDED. |
+| Authentication and session model | Required: verified email, email-link sign-in, logout, dual Organizer/Attendee capability, Admin grants, and event-specific staff assignments. PROPOSED: revocable server-side sessions with an opaque browser cookie. Mobile session transport is TO BE DECIDED. |
+| Data model and scale expectations | Required entities and state machines come from the requirements. Acceptance load: 1,000 launched events, 10,000 confirmed bookings, 200 active sessions, 20 user actions/second; growth expectations are UNKNOWN. PROPOSED: one relational database with transactions. |
+| Security expectations | Required authorization, consent, audience filtering, audit, and retention boundaries are preserved below. Detailed controls are deferred to `SECURITY.md`. Jurisdictions and statutory duties are UNKNOWN. |
 
 ## Open Questions
 
