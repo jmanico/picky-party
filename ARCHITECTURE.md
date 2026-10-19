@@ -119,7 +119,7 @@ sequenceDiagram
   participant Callback as Payment inbound adapter
   participant Staff as Staff view
   Attendee->>API: Checkout accepted order
-  API->>DB: Check access, cutoff, unresolved payments; atomically reserve seat
+  API->>DB: Check access, cutoff, unresolved payments#59; atomically reserve seat
   DB-->>API: Persisted hold and payment attempt
   API->>Gateway: Initiate payment through financial payment port
   Gateway->>Pay: Full-price payment with operation identity
@@ -137,11 +137,11 @@ sequenceDiagram
   end
   API->>DB: Deduplicate and validate payment, event and hold
   alt Correct payment during valid hold
-    API->>DB: Replace hold with booking; persist updates and notices
+    API->>DB: Replace hold with booking#59; persist updates and notices
   else Late, incorrect, duplicate or cancelled-event payment
-    API->>DB: Persist full-refund work; no new confirmed booking
+    API->>DB: Persist full-refund work#59; no new confirmed booking
   else Result unresolved
-    API->>DB: Keep payment Pending; block another payment
+    API->>DB: Keep payment Pending#59; block another payment
   end
   Staff->>API: Poll after saved cursor
   API->>DB: Read current authorized state and updates
