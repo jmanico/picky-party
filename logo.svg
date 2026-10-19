@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="logo-title">
+  <title id="logo-title">Picky Party</title>
+  <desc>A rounded P monogram in deep green on a warm neutral background.</desc>
+  <rect width="64" height="64" fill="#FFF9ED"/>
+  <path fill="#184D3D" fill-rule="evenodd" d="M13 56V8H31C42 8 51 16 51 26S42 44 31 44H25V56ZM25 20V32H31C35.4 32 39 29.6 39 26S35.4 20 31 20Z"/>
+</svg>
