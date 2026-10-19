@@ -6,7 +6,7 @@ ASSUMPTION: All added policies, limits, and numerical targets are product decisi
 
 ## Required Requirement Inputs
 
-- Project purpose: A cooking event website with a price per person, dishes that meet guest needs, and ingredient planning for the Organizer.
+- Project purpose: A cooking event website for eating events with a price per person and dishes that meet guest needs.
 - Primary users / actors: Admin, Organizer, Attendee; cook and grocery shopper. ASSUMPTION: Cook and shopper are event assignments, not additional account roles.
 - Core workflows: Create and launch events; advertise with QR codes; review food requests; take payment; confirm attendance; calculate ingredients; update event staff; cancel and refund bookings; show an event calendar.
 - Business objects / data entities: Account, event, staff assignment, dish, recipe, ingredient, food order, dietary request, seat hold, booking, payment, refund, payout, order update, QR code.
